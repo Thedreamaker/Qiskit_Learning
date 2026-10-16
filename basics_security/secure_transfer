@@ -1,0 +1,62 @@
+import random
+from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
+
+# Step 1: Configuration
+NUM_BITS = 20  # Number of qubits Alice will send
+sim = AerSimulator()
+
+# Alice generates random bits and chooses random bases (True = Diagonal/X, False = Standard/Z)
+alice_bits = [random.randint(0, 1) for _ in range(NUM_BITS)]
+alice_bases = [random.choice([True, False]) for _ in range(NUM_BITS)]
+
+# Bob and Eve also choose their random measurement bases
+eve_bases = [random.choice([True, False]) for _ in range(NUM_BITS)]
+bob_bases = [random.choice([True, False]) for _ in range(NUM_BITS)]
+
+alice_key = []
+bob_key = []
+eavesdropping_detected = False
+
+# Step 2: Run the transmission qubit by qubit
+for i in range(NUM_BITS):
+    # 1. Alice creates and prepares the qubit
+    qc = QuantumCircuit(1, 1)
+    if alice_bits[i] == 1:
+        qc.x(0) # Set to |1>
+    if alice_bases[i]:
+        qc.h(0) # Put into Diagonal/X basis if True
+        
+    # 2. EVE INTERCEPTS (Eavesdropping Phase)
+    # Comment out this entire block if you want to see what happens WITHOUT a spy!
+  #  if eve_bases[i]:
+  #      qc.h(0) # Measure in X basis
+  #  qc.measure(0, 0)
+   # eve_measured = int(list(sim.run(qc, shots=1).result().get_counts().keys())[0])
+    
+    # Reset qubit state to what Eve measured (Quantum collapse simulation)
+   # qc = QuantumCircuit(1, 1)
+    #if eve_measured == 1:
+  #      qc.x(0)
+  #  if eve_bases[i]: # Put back into the basis Eve used
+   #     qc.h(0)
+
+    # 3. BOB MEASURES
+    if bob_bases[i]:
+        qc.h(0) # Measure in X basis
+    qc.measure(0, 0)
+    bob_measured = int(list(sim.run(qc, shots=1).result().get_counts().keys())[0])
+    
+    # 4. SIFTING KEYS: Alice and Bob only compare if they chose the SAME basis
+    if alice_bases[i] == bob_bases[i]:
+        alice_key.append(alice_bits[i])
+        bob_key.append(bob_measured)
+
+# Step 3: Check for security leaks
+print(f"Alice's matching-basis bits: {alice_key}")
+print(f"Bob's matching-basis bits:   {bob_key}")
+
+if alice_key == bob_key:
+    print("\n🟢 SECURE KEY EXCHANGE! No eavesdropping detected.")
+else:
+    print("\n🚨 ALARM! Keys do not match. A spy (Eve) tampered with the quantum channel!")
